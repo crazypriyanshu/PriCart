@@ -2,6 +2,8 @@ package com.pdas.priCart.shop.auth.user.controller;
 
 import com.pdas.priCart.shop.auth.user.dto.CreateUserRequestDto;
 import com.pdas.priCart.shop.auth.user.dto.UserDto;
+import com.pdas.priCart.shop.auth.user.dto.UserUpdateDto;
+import com.pdas.priCart.shop.auth.user.exceptions.UserNotFoundException;
 import com.pdas.priCart.shop.auth.user.models.User;
 import com.pdas.priCart.shop.auth.user.service.IUserService;
 import com.pdas.priCart.shop.common.dto.ApiResponse;
@@ -12,10 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 
 @RestController
@@ -35,6 +34,43 @@ public class UserController {
             return ResponseEntity.ok(new ApiResponse("User created succesfully", userDto));
         } catch (Exception e){
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiResponse(e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse> getUserById(@PathVariable Long userId) {
+        try {
+            User user = userService.getUserById(userId);
+            UserDto dto = userService.convertUserToDto(user);
+            logger.info("Fetched successfully user details for : {}", userId );
+            return ResponseEntity.ok(new ApiResponse("User fetched successfully", dto));
+        } catch (UserNotFoundException e){
+            logger.error("User not found : {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<ApiResponse> updateUser(@RequestBody UserUpdateDto userUpdateDto, @PathVariable Long userId) {
+        try {
+            User user = userService.updateUser(userUpdateDto, userId);
+            UserDto userDto = userService.convertUserToDto(user);
+            logger.info("Updated user details successfully for : {}", userId );
+            return ResponseEntity.ok(new ApiResponse("Update success", userDto));
+
+        } catch (Exception e) {
+            logger.error("Technical error while updating user with userId {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<ApiResponse> deleteUser(@PathVariable Long userId){
+        try {
+            userService.deleteUser(userId);
+            return ResponseEntity.ok(new ApiResponse("User Delete successful", null));
+        } catch (Exception e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(e.getMessage(), null));
         }
     }
 }
