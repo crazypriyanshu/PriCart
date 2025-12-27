@@ -1,15 +1,18 @@
 package com.pdas.priCart.shop.auth.user.service;
 
-import com.pdas.priCart.shop.auth.user.dto.CreateUserRequestDto;
-import com.pdas.priCart.shop.auth.user.models.User;
-import com.pdas.priCart.shop.auth.user.models.UserMapper;
-import com.pdas.priCart.shop.auth.user.repositories.UserRepository;
+import com.pdas.priCart.shop.user.dto.CreateUserRequestDto;
+import com.pdas.priCart.shop.user.models.User;
+import com.pdas.priCart.shop.user.models.UserMapper;
+import com.pdas.priCart.shop.user.repositories.UserRepository;
+import com.pdas.priCart.shop.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,6 +43,22 @@ class UserServiceTest {
 
     @Test
     void getUserById() {
+        User user = new User();
+        user.setId(1L);
+        user.setFirstName("1Test");
+        user.setEmail("tiger@abc.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        User result = userService.getUserById(1L);
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+        assertEquals("1Test", result.getFirstName());
+    }
+
+    @Test
+    void getUserById_whenUserDoesNotExists_shouldThrowException(){
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> userService.getUserById(1L));
+        assertEquals("User not found", exception.getMessage());
     }
 
     @Test

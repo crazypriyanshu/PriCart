@@ -1,12 +1,12 @@
-package com.pdas.priCart.shop.auth.user.service;
+package com.pdas.priCart.shop.user.service;
 
-import com.pdas.priCart.shop.auth.user.dto.CreateUserRequestDto;
-import com.pdas.priCart.shop.auth.user.dto.UserDto;
-import com.pdas.priCart.shop.auth.user.dto.UserUpdateDto;
-import com.pdas.priCart.shop.auth.user.exceptions.UserNotFoundException;
-import com.pdas.priCart.shop.auth.user.models.User;
-import com.pdas.priCart.shop.auth.user.models.UserMapper;
-import com.pdas.priCart.shop.auth.user.repositories.UserRepository;
+import com.pdas.priCart.shop.user.dto.CreateUserRequestDto;
+import com.pdas.priCart.shop.user.dto.UserDto;
+import com.pdas.priCart.shop.user.dto.UserUpdateDto;
+import com.pdas.priCart.shop.user.exceptions.UserNotFoundException;
+import com.pdas.priCart.shop.user.models.User;
+import com.pdas.priCart.shop.user.models.UserMapper;
+import com.pdas.priCart.shop.user.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;

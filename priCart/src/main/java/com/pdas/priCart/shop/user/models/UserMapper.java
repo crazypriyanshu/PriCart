@@ -1,6 +1,6 @@
-package com.pdas.priCart.shop.auth.user.models;
+package com.pdas.priCart.shop.user.models;
 
-import com.pdas.priCart.shop.auth.user.dto.UserDto;
+import com.pdas.priCart.shop.user.dto.UserDto;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

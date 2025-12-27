@@ -1,4 +1,4 @@
-package com.pdas.priCart.shop.auth.user.dto;
+package com.pdas.priCart.shop.user.dto;
 
 import lombok.Data;
 

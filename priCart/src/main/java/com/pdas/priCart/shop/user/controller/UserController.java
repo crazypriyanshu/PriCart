@@ -1,11 +1,11 @@
-package com.pdas.priCart.shop.auth.user.controller;
+package com.pdas.priCart.shop.user.controller;
 
-import com.pdas.priCart.shop.auth.user.dto.CreateUserRequestDto;
-import com.pdas.priCart.shop.auth.user.dto.UserDto;
-import com.pdas.priCart.shop.auth.user.dto.UserUpdateDto;
-import com.pdas.priCart.shop.auth.user.exceptions.UserNotFoundException;
-import com.pdas.priCart.shop.auth.user.models.User;
-import com.pdas.priCart.shop.auth.user.service.IUserService;
+import com.pdas.priCart.shop.user.dto.CreateUserRequestDto;
+import com.pdas.priCart.shop.user.dto.UserDto;
+import com.pdas.priCart.shop.user.dto.UserUpdateDto;
+import com.pdas.priCart.shop.user.exceptions.UserNotFoundException;
+import com.pdas.priCart.shop.user.models.User;
+import com.pdas.priCart.shop.user.service.IUserService;
 import com.pdas.priCart.shop.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,8 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
 
 @RestController
 @RequiredArgsConstructor
@@ -72,5 +73,27 @@ public class UserController {
         } catch (Exception e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(e.getMessage(), null));
         }
+    }
+
+    // 1. Open to everyone
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse> home(){
+        return ResponseEntity.ok(new ApiResponse("All Access - Public", null));
+    }
+
+    // 2. Requires ROLE_USER or ROLE_ADMIN
+    @GetMapping("/u")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<ApiResponse> user(){
+        return ResponseEntity.ok(new ApiResponse("User/Admin Access Only", null));
+    }
+
+    // 3. Requires ROLE_ADMIN strictly
+    @GetMapping("/a")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse> admin(Authentication authentication){
+        System.out.println("User: " + authentication.getName());
+        System.out.println("Authorities: " + authentication.getAuthorities());
+        return ResponseEntity.ok(new ApiResponse("Admin Access Only", null));
     }
 }

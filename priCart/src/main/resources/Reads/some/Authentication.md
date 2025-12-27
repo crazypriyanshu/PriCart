@@ -44,23 +44,27 @@ Create a class extending `OncePerRequestFilter`
 
 Steps : 
 1. Add cryptographic dependencies:
+> jjwt-api: This contains interfaces and classes we actually import in Java code like Jwt and Claims
+> jjwt-impl: This contains actual logic for signing and verifying. we don't call this directly, jjwt-api uses reflection at the runtime
+> jjwt-jackson: JWT are just Base64-encoded JSON. This module tells JJWT how to use existing Springboot Jackson library to turn Java objects/claims into JSON strings
+>
     `<dependency>
     <groupId>io.jsonwebtoken</groupId>
     <artifactId>jjwt-api</artifactId>
     <version>0.11.5</version>
-</dependency>
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-impl</artifactId>
-    <version>0.11.5</version>
-    <scope>runtime</scope>
-</dependency>
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-jackson</artifactId>
-    <version>0.11.5</version>
-    <scope>runtime</scope>
-</dependency>`
+   </dependency>
+   <dependency>
+       <groupId>io.jsonwebtoken</groupId>
+       <artifactId>jjwt-impl</artifactId>
+       <version>0.11.5</version>
+       <scope>runtime</scope>
+   </dependency>
+   <dependency>
+       <groupId>io.jsonwebtoken</groupId>
+       <artifactId>jjwt-jackson</artifactId>
+       <version>0.11.5</version>
+       <scope>runtime</scope>
+   </dependency>`
 
 
 

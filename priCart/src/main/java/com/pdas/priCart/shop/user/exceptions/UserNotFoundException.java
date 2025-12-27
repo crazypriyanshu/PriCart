@@ -1,4 +1,4 @@
-package com.pdas.priCart.shop.auth.user.exceptions;
+package com.pdas.priCart.shop.user.exceptions;
 
 public class UserNotFoundException extends RuntimeException {
     public UserNotFoundException(String message){
