@@ -7,6 +7,7 @@ import com.pdas.priCart.shop.user.exceptions.UserNotFoundException;
 import com.pdas.priCart.shop.user.models.User;
 import com.pdas.priCart.shop.user.models.UserMapper;
 import com.pdas.priCart.shop.user.repositories.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -15,9 +16,11 @@ public class UserService implements IUserService{
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    UserService(UserRepository userRepository, UserMapper userMapper){
+    private final PasswordEncoder passwordEncoder;
+    UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder){
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
     }
     @Override
     public User getUserById(Long userId) {
@@ -33,7 +36,7 @@ public class UserService implements IUserService{
                     user.setEmail(userRequest.getEmailId());
                     user.setFirstName(userRequest.getFirstName());
                     user.setLastName(userRequest.getLastName());
-                    user.setPassword(userRequest.getPassword());
+                    user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
                     return userRepository.save(user);
                 }).orElseThrow(() -> new RuntimeException("Unable to save the user"));
     }

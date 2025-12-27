@@ -51,6 +51,19 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println(">>>> Created default Admin admin@abc.com");
         }
 
+        // Step 2.a: Create a deterministic user
+        if (!userRepository.existsByEmail("user@abc.com")) {
+            User user = User.builder()
+                    .firstName("User")
+                    .lastName("Simply")
+                    .email("user@abc.com")
+                    .password(passwordEncoder.encode("user1234"))
+                    .roles(Set.of(userRole))
+                    .build();
+            userRepository.save(user);
+            System.out.println(">>>> Created default user user@abc.com");
+        }
+
         // 3. Seed Fake Users using Datafaker, create 15 users who has role User
         long currentUserCount = userRepository.count();
         if (currentUserCount < 20) {
