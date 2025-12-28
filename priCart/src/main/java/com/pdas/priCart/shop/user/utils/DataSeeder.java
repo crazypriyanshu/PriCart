@@ -1,4 +1,4 @@
-package com.pdas.priCart.shop.common.configurationTest;
+package com.pdas.priCart.shop.user.utils;
 
 import com.pdas.priCart.shop.user.models.Role;
 import com.pdas.priCart.shop.user.models.User;
