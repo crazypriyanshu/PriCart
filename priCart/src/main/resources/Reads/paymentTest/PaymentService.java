@@ -1,4 +1,4 @@
-package com.pdas.priCart.shop.paymentTest;
+package Reads.paymentTest;
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.pdas.priCart.shop.paymentTest;
+package Reads.paymentTest;
 
 public interface PaymentProcessor {
     public void makePayment(Long amount);

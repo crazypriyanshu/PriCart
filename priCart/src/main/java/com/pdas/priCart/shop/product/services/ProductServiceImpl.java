@@ -51,9 +51,12 @@ public class ProductServiceImpl implements ProductService {
         // Fetch or create category by name
         Category category = categoryRepository
                 .findByNameIgnoreCase(request.getCategory().getName())
-                .orElseGet(() -> Category.builder()
-                        .name(request.getCategory().getName())
-                        .build());
+                .orElseGet(() -> {
+                    Category newCategory = Category.builder()
+                            .name(request.getCategory().getName())
+                            .build();
+                    return categoryRepository.save(newCategory);
+                });
 
         // Now build the product
         Product product = Product.builder()

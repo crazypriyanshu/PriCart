@@ -123,6 +123,7 @@ public class SecurityConfiguration {
                         // ---- Role-based ----
                         .requestMatchers("/api/v1/users/a/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/users/u/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/products/**").hasAnyRole("USER", "ADMIN")
 
                         // ---- Everything else secured ----
                         .anyRequest().authenticated()

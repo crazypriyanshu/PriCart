@@ -25,6 +25,7 @@ public class TokenService {
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(" "));
+
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("self")
                 .issuedAt(now)
@@ -35,3 +36,12 @@ public class TokenService {
         return this.encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }
 }
+
+/*
+* Understanding:
+* 1. User sends credentials → /login
+* 2. Spring Security authenticates via AuthenticationManager
+* 3. We receive a fully populated Authentication
+* 4. We generate JWT from that authentication
+* 5. Client uses JWT to protect API
+* */
