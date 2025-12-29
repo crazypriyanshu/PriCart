@@ -102,25 +102,40 @@ public class SecurityConfiguration {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    // 4. The security filter chain
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/users/all/**", "/api/v1/auth/login").permitAll()
+                        // ---- Swagger / OpenAPI ----
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // ---- Public endpoints ----
+                        .requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/users/all/**"
+                        ).permitAll()
+
+                        // ---- Role-based ----
                         .requestMatchers("/api/v1/users/a/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/users/u/**").hasAnyRole("USER", "ADMIN")
+
+                        // ---- Everything else secured ----
                         .anyRequest().authenticated()
                 )
-                // configuring app to be a resource server
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // keep basic auth only for the initial login endpoint
-                .httpBasic(Customizer.withDefaults());
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
 
-        return httpSecurity.build();
+        return http.build();
     }
+
+
 
 
     /*
