@@ -1,5 +1,6 @@
 package Reads.paymentTest;
 
+import com.pdas.priCart.shop.order.models.Order;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +20,20 @@ public class PaymentService {
                 .collect(Collectors.toMap(PaymentProcessor::getGateway, Function.identity()));
     }
 
-    public void processPayment(Long amount, String gateway){
+    public void processPayment(Order order, String gateway){
         PaymentProcessor paymentProcessor = paymentProcessorMap.get(gateway);
         if (paymentProcessor == null){
             throw new IllegalArgumentException("Unsupported gateway");
         }
-        paymentProcessor.makePayment(amount);
+
+        // 1. Initiate payment through the specific gateway
+        PaymentInitializationResponse response = paymentProcessor.initiatePayment(order);
+        // 2. Save generic details back to the order
+        order.setGatewayOrderId(response.getOrderId()); // Stores the external ID
+        order.setPaymentGateway(gateway);              // Stores "RAZOR_PAY"
+        orderRepository.save(order);
+
+        return response;
     }
 
 }

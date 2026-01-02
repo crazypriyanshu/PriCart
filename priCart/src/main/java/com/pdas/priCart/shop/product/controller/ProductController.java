@@ -6,6 +6,7 @@ import com.pdas.priCart.shop.product.dto.ProductDto;
 import com.pdas.priCart.shop.product.dto.ProductUpdateRequest;
 import com.pdas.priCart.shop.product.models.Product;
 import com.pdas.priCart.shop.product.services.ProductService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("${api_prefix}/products")
 public class ProductController {
     private final ProductService productService;
@@ -111,8 +113,5 @@ public class ProductController {
                 productService.countProductsByBrandAndName(brand, name)
         );
     }
-
-
-
 
 }

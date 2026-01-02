@@ -1,5 +1,7 @@
 package com.pdas.priCart.shop.product.models;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pdas.priCart.shop.common.models.BaseModel;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -23,5 +25,6 @@ public class Image extends BaseModel {
 
     @ManyToOne
     @JoinColumn(name = "product_id")
+    @JsonBackReference
     private Product product;
 }

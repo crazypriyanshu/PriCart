@@ -14,6 +14,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -119,6 +120,7 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/login",
                                 "/api/v1/users/all/**"
                         ).permitAll()
+                        .requestMatchers("/api/v1/payments/webhook/**").permitAll()
 
                         // ---- Role-based ----
                         .requestMatchers("/api/v1/users/a/**").hasRole("ADMIN")
@@ -154,6 +156,14 @@ public class SecurityConfiguration {
         converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
         return converter;
 
+    }
+
+    /*
+    * Want to make swagger Api's out of my security chain, swagger, api-docs are not required to have key to enter
+    * */
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers("/v3/api-docs/**", "/swagger-ui/**");
     }
 
 

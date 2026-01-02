@@ -1,5 +1,6 @@
 package com.pdas.priCart.shop.product.models;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.pdas.priCart.shop.common.models.BaseModel;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,5 +40,6 @@ public class Product extends BaseModel {
     private Category category;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<Image> images;
 }

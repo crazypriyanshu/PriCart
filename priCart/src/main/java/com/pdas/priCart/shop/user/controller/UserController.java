@@ -8,6 +8,7 @@ import com.pdas.priCart.shop.user.models.User;
 import com.pdas.priCart.shop.user.service.IUserService;
 import com.pdas.priCart.shop.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/${api_prefix}/users")
 @Tag(name = "User Management", description = "APIs for creating and managing users")
 public class UserController {

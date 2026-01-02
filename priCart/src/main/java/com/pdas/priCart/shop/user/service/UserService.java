@@ -1,12 +1,16 @@
 package com.pdas.priCart.shop.user.service;
 
+import com.pdas.priCart.shop.product.exception.ResourceNotFoundException;
 import com.pdas.priCart.shop.user.dto.CreateUserRequestDto;
+import com.pdas.priCart.shop.user.dto.ResetPasswordDto;
 import com.pdas.priCart.shop.user.dto.UserDto;
 import com.pdas.priCart.shop.user.dto.UserUpdateDto;
 import com.pdas.priCart.shop.user.exceptions.UserNotFoundException;
 import com.pdas.priCart.shop.user.models.User;
 import com.pdas.priCart.shop.user.models.UserMapper;
 import com.pdas.priCart.shop.user.repositories.UserRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +61,29 @@ public class UserService implements IUserService{
             throw new RuntimeException("User not found to delete");
         });
 
+    }
+
+    @Override
+    public User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found in getAuthenticatedUser: "+email));
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordDto resetPasswordDto) {
+        if (!resetPasswordDto.getNewPassword().equals(resetPasswordDto.getConfirmPassword())){
+            throw new IllegalStateException("Passwords donot match, make sure you enter correctly");
+        }
+
+        try {
+            User user = userRepository.findByEmail(resetPasswordDto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found with email: "+resetPasswordDto.getEmail()));
+            user.setPassword(passwordEncoder.encode(resetPasswordDto.getNewPassword()));
+            userRepository.save(user);
+        } catch (Exception e) {
+            throw new IllegalStateException("technical error while updating password of user: "+resetPasswordDto.getConfirmPassword());
+        }
     }
 
     @Override
