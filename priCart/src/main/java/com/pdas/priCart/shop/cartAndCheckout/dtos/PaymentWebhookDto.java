@@ -1,26 +1,40 @@
 package com.pdas.priCart.shop.cartAndCheckout.dtos;
 
+import com.pdas.priCart.shop.cartAndCheckout.models.PaymentStatus;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
 public class PaymentWebhookDto {
+    // Idempotency
+    private String eventId;
+
     // IDs used for linking
-    private String gatewayOrderId;    // To find the record in your DB
-    private String gatewayPaymentId;  // The new 'pay_xxx' ID
+    private String gatewayOrderId;
+    private String gatewayPaymentId;
+
+    // Status
+    private PaymentStatus paymentStatus;
 
     // Customer Info
     private String email;
     private String contact;
 
     // Payment Metadata
-    private String method;            // e.g., "wallet", "card", "upi"
-    private String wallet;            // e.g., "jiomoney", "paytm"
-    private String bank;              // e.g., "HDFC"
+    private String method;
+    private String wallet;
+    private String bank;
 
-    // Financial Details (Stored in Paise/Cents as Long/Integer)
+    // Financial Details (smallest unit)
     private Long amount;
     private Integer tax;
     private Integer fee;
+
+    // Failure info (only for FAILED / CANCELLED)
+    private String failureCode;
+    private String failureReason;
+
+    // Audit
+    private Long gatewayEventTime;
 }

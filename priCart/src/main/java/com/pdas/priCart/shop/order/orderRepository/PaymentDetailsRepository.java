@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface PaymentDetailsRepository extends JpaRepository<PaymentDetails, Long> {
     // This will work because PaymentDetails HAS this field
     Optional<PaymentDetails> findByGatewayOrderId(String gatewayOrderId);
+    Optional<PaymentDetails> findByOrderId(Long orderId);
 }

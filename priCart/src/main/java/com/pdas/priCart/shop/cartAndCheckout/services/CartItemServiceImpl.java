@@ -27,7 +27,7 @@ public class CartItemServiceImpl implements CartItemService{
 
     @Override
     @Transactional // Makes sure that entire process is atomic
-    public void addCartItem(Long cartId, Long productId, int quantity) throws ProductNotFoundException {
+    public Cart addCartItem(Long cartId, Long productId, int quantity) throws ProductNotFoundException {
 
         Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: "+cartId));
 
@@ -50,6 +50,7 @@ public class CartItemServiceImpl implements CartItemService{
         cart.addItem(cartItem);
         // we are not saving this cartItem, because Cart entity has CascadeType.ALL, so whenever we update Cart, automatically do it on CartItems
         cartRepository.save(cart);
+        return cart;
 
     }
 
@@ -65,28 +66,29 @@ public class CartItemServiceImpl implements CartItemService{
 
     @Override
     @Transactional
-    public void removeCartItem(Long cartId, Long productId) {
+    public Cart removeCartItem(Long cartId, Long productId) {
 
         Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart not found with cartID: "+cartId));
         CartItem itemsToRemove = cart.getCartItems().stream()
-                .filter(item -> item.getProduct().getId().equals(productId))
+                .filter(item -> item.getProduct().getId().equals(productId) && !item.isDeleted())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found in the cart"));
 
         // remove the cart's internal collection
-        cart.removeItem(itemsToRemove);
+        itemsToRemove.setDeleted(true);
         // update teh cart total
         cart.updateTotalAmount();
-        cartRepository.save(cart);
+        return cartRepository.save(cart);
     }
 
+
     @Override
-    public void updateItemQuantity(Long cartId, Long productId, int quantity) {
-        Cart cart = cartService.getCart(cartId);
+    public Cart updateItemQuantity(Long productId, int quantity) {
+        Cart cart = cartService.getCart();
         Product product = productRepository.getProductById(productId);
         cart.getCartItems()
                 .stream()
-                .filter(item -> item.getProduct().getId().equals(productId))
+                .filter(item -> item.getProduct().getId().equals(productId) && !item.isDeleted())
                 .findFirst()
                 .ifPresent(item -> {
                     item.setQuantity(quantity);
@@ -95,17 +97,18 @@ public class CartItemServiceImpl implements CartItemService{
                 });
         BigDecimal totalAmount = cart.getTotalAmount();
         cart.setTotalAmount(totalAmount);
-        cartRepository.save(cart);
+        return cartRepository.save(cart);
 
     }
 
+
     @Override
-    public CartItem getCartItem(Long cartId, Long productId) {
-        Cart cart = cartService.getCart(cartId);
+    public CartItem getCartItem(Long productId) {
+        Cart cart = cartService.getCart();
         return cart.getCartItems()
                 .stream()
-                .filter(item -> item.getProduct().getId().equals(productId))
+                .filter(item -> item.getProduct().getId().equals(productId)&& !item.isDeleted())
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Item not found for cartId: "+cartId+ " productId: "+productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: "+ productId));
     }
 }

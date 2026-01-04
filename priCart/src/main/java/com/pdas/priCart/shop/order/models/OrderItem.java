@@ -20,6 +20,10 @@ public class OrderItem extends BaseModel {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    private String name;
+    private String brand;
+    private String description;
+
     @ManyToOne
     @JoinColumn(name = "order_id")
     private Order order;

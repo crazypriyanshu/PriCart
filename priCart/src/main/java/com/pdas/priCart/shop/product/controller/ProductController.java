@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -73,7 +74,10 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<ProductDto>> searchProductsByName(@RequestParam String name, Pageable pageable) {
+    public ResponseEntity<Page<ProductDto>> searchProductsByName(@RequestParam String name, @RequestParam(defaultValue = "name") String sortBy,
+                                                                 @RequestParam(defaultValue = "0") int page) {
+        String safeSort = sortBy.equalsIgnoreCase("string") ? "name" : sortBy;
+        Pageable pageable = PageRequest.of(page, 10, Sort.by(safeSort).ascending());
         return ResponseEntity.ok(productService.searchProductsByName(name, pageable));
     }
 

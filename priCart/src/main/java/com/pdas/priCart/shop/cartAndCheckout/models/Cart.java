@@ -41,8 +41,10 @@ public class Cart extends BaseModel {
         updateTotalAmount();
     }
 
-    public void updateTotalAmount(){
+    public void
+    updateTotalAmount(){
         this.totalAmount = cartItems.stream()
+                .filter(cartItem -> !cartItem.isDeleted())
                 .map(this::calculateSubtotal) // Cleaner mapping
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

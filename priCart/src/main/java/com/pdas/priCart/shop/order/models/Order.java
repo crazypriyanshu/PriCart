@@ -28,6 +28,12 @@ public class Order extends BaseModel {
     @Enumerated(EnumType.STRING)
     private OrderStatus orderStatus;
 
+    @Column(name = "gateway_order_id", nullable = true)
+    private String gatewayOrderId;
+
+    @Column(name = "gateway_name")
+    private String gatewayName; // Stores "RAZORPAY" or "PHONEPE"
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<OrderItem> orderItems = new HashSet<>();
 

@@ -3,7 +3,6 @@ package com.pdas.priCart.shop.cartAndCheckout.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pdas.priCart.shop.common.models.BaseModel;
 import com.pdas.priCart.shop.product.models.Product;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;

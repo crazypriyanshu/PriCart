@@ -1,11 +1,15 @@
 package com.pdas.priCart.shop.order.service;
 
+import com.pdas.priCart.shop.cartAndCheckout.dtos.PaymentInitializationResponse;
 import com.pdas.priCart.shop.cartAndCheckout.dtos.PaymentWebhookDto;
+import com.pdas.priCart.shop.cartAndCheckout.exceptions.StockInsufficientException;
 import com.pdas.priCart.shop.cartAndCheckout.models.Cart;
+import com.pdas.priCart.shop.cartAndCheckout.models.PaymentStatus;
 import com.pdas.priCart.shop.cartAndCheckout.services.CartService;
+import com.pdas.priCart.shop.cartAndCheckout.services.PaymentProcessor;
+import com.pdas.priCart.shop.cartAndCheckout.services.PaymentService;
 import com.pdas.priCart.shop.order.dto.OrderDto;
 import com.pdas.priCart.shop.order.dto.OrderItemDto;
-import com.pdas.priCart.shop.order.exceptions.ProductOutOfStockException;
 import com.pdas.priCart.shop.order.mapper.OrderMapper;
 import com.pdas.priCart.shop.order.models.Order;
 import com.pdas.priCart.shop.order.models.OrderItem;
@@ -13,7 +17,6 @@ import com.pdas.priCart.shop.order.models.OrderStatus;
 import com.pdas.priCart.shop.order.models.PaymentDetails;
 import com.pdas.priCart.shop.order.orderRepository.OrderRepository;
 import com.pdas.priCart.shop.order.orderRepository.PaymentDetailsRepository;
-import com.pdas.priCart.shop.product.exception.ProductNotFoundException;
 import com.pdas.priCart.shop.product.exception.ResourceNotFoundException;
 import com.pdas.priCart.shop.product.models.Product;
 import com.pdas.priCart.shop.product.repositories.ProductRepository;
@@ -23,14 +26,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.HashSet;
+
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,78 +40,67 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements OrderService{
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final PaymentDetailsRepository paymentDetailsRepository;
     private final CartService cartService;
     private final UserService userService;
     private final PaymentDetailsRepository paymentDetailRepository;
     private final OrderMapper orderMapper;
+    private final PaymentService paymentService;
 
+    /*
+    * Step 1 of User payment journey
+    * Moves Cart-items from a Cart to Order-items of an Order
+    * Find existing ORDER_PLACED or create a new one
+    * */
     @Override
     @Transactional // Ensures Atomicity
-    public Order placeOrder(Long userId) {
-        Cart cart = cartService.getCartByUserId(userId)
+    public OrderDto placeOrder() {
+        // 1. Get the current user and their active cart
+        User user = userService.getAuthenticatedUser();
+        Cart cart = cartService.getCart();
+
+        // 2. Initialize Order
+        // checking orders based on timestamp - findTopByUserAndOrderStatusInOrderByCreatedTimeDesc handle concurrency
+        Order order = orderRepository.findTopByUserAndOrderStatusInOrderByCreatedAtDesc(user,
+                        List.of(OrderStatus.ORDER_PENDING, OrderStatus.ORDER_PAYMENT_FAILED, OrderStatus.ORDER_PAYMENT_CANCELLED)).stream().findFirst()
                 .orElseGet(() -> {
-                    User user = userService.getAuthenticatedUser();
-                    return cartService.initializeNewCart(user);
+                    Order newOrder = new Order();
+                    newOrder.setUser(user);
+                    return newOrder;
                 });
-
-
-
-        // Initialize Order
-        Order order = createOrderFromCart(cart);
+        order.setUser(user);
+        order.setTotalAmount(cart.getTotalAmount());
+        order.setOrderStatus(OrderStatus.ORDER_PLACED);
+        order.setOrderDate(LocalDateTime.now());
 
         //Transform CartItems to OrderItems and link them
-        List<OrderItem> orderItemList = createOrderItems(order, cart);
+        Set<OrderItem> orderItems = cart.getCartItems().stream()
+                .filter(cartItem -> !cartItem.isDeleted())
+                        .map(cartItem -> {
+                            OrderItem orderItem = new OrderItem();
+                            orderItem.setProduct(cartItem.getProduct());
+                            orderItem.setQuantity(cartItem.getQuantity());
+                            orderItem.setPrice(cartItem.getUnitPrice());
+                            orderItem.setName(cartItem.getProduct().getName());
+                            orderItem.setBrand(cartItem.getProduct().getBrand());
+                            orderItem.setDescription(cartItem.getProduct().getDescription());
+                            orderItem.setOrder(order);
+                            return orderItem;
+                        }).collect(Collectors.toSet());
 
         // update Order State
-        order.setOrderItems(new HashSet<>(orderItemList));
-        order.setTotalAmount(calculateTotalAmount(orderItemList));
+        order.setOrderItems(orderItems);
+        order.setTotalAmount(calculateTotalAmount(orderItems));
 
         // Save (order items are saved via CascadingType.ALL)
         Order saveOrder = orderRepository.save(order);
+        // DO NOT clear the cart yet!
 
-        return order;
-    }
-
-    // Sort of a static factory method
-    private static Order createOrderFromCart(Cart cart){
-        Order order = new Order();
-        //1. check if teh cart has a user of not
-        if (cart.getUser() == null){
-            throw new IllegalStateException("Cannot create a cart without a user");
-        }
-        order.setUser(cart.getUser());
-        order.setOrderStatus(OrderStatus.PENDING);
-        order.setOrderDate(LocalDateTime.now());
-        // 2. Convert CartItems to OrderItems
-        Set<OrderItem> orderItems = cart.getCartItems().stream().map(cartItem -> {
-            OrderItem orderItem = new OrderItem();
-            orderItem.setProduct(cartItem.getProduct());
-            orderItem.setQuantity(cartItem.getQuantity());
-
-            // If the product price changes later, the order history stays accurate.
-            orderItem.setPrice(cartItem.getProduct().getPrice());
-
-            // Link the item to this order (for JPA Bi-directional relationship)
-            orderItem.setOrder(order);
-            return orderItem;
-        }).collect(Collectors.toSet());
-        order.setOrderItems(orderItems);
-
-        // 3. Set the total amount from the cart
-        order.setTotalAmount(cart.getTotalAmount());
-
-        return order;
+        return orderMapper.toDto(saveOrder);
     }
 
 
-
-//    private BigDecimal calculateTotalAMount(List<OrderItem> orderItemList){
-//        return orderItemList.stream()
-//                .map(orderItem -> {orderItem.getPrice().multiply(BigDecimal.valueOf(orderItem.getQuantity()));})
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//    }
-
-    private BigDecimal calculateTotalAmount(List<OrderItem> orderItems) {
+    private BigDecimal calculateTotalAmount(Set<OrderItem> orderItems) {
         return orderItems.stream()
                 .map(this::getItemTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -120,39 +109,6 @@ public class OrderServiceImpl implements OrderService{
     private BigDecimal getItemTotal(OrderItem item) {
         if (item.getPrice() == null) return BigDecimal.ZERO;
         return item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-    }
-
-    private List<OrderItem> createOrderItems(Order order, Cart cart){
-        return cart.getCartItems()
-                .stream()
-                .map(cartItem -> {
-                    Product product = cartItem.getProduct();
-                    Integer stock = product.getInventory();
-                    // 1. Address null or zero inventory
-                    if (stock == null || stock <= 0) {
-                        throw new ProductOutOfStockException(
-                                "The item '" + product.getName() + "' is currently out of stock. It will be back soon!"
-                        );
-                    }
-
-                    // 2. Check if they are asking for more than we have
-                    if (stock < cartItem.getQuantity()) {
-                        throw new IllegalStateException(
-                                "Only " + stock + " units of '" + product.getName() + "' available. Please adjust your cart."
-                        );
-                    }
-
-                    // 3. Safely deduct stock now
-                    product.setInventory(product.getInventory() - cartItem.getQuantity());
-                    productRepository.save(product);
-                    OrderItem orderItem = new OrderItem();
-                    orderItem.setQuantity(cartItem.getQuantity());
-                    orderItem.setProduct(cartItem.getProduct());
-                    orderItem.setPrice(cartItem.getUnitPrice());
-                    orderItem.setOrder(order);
-                    return orderItem;
-                })
-                .toList();
     }
 
     @Override
@@ -194,46 +150,351 @@ public class OrderServiceImpl implements OrderService{
         return orderDto;
     }
 
+    /**
+     * --------------------------------------------------------------------
+     * COMPLETE ORDER AFTER PAYMENT CAPTURE (WEBHOOK FLOW)
+     * --------------------------------------------------------------------
+     * Processes a successful payment webhook and completes the order.
+     *
+     * This method:
+     *  - Validates the incoming webhook payload
+     *  - Fetches the corresponding Order using the gateway order ID
+     *  - Ensures idempotent processing (no double capture)
+     *  - Updates payment details with gateway metadata
+     *  - Marks the order as PAID
+     *  - Reduces product inventory
+     *  - Clears the user's cart
+     *
+     * Transactional guarantees:
+     *  - All DB changes are committed atomically
+     *  - On any failure, inventory/order/payment updates are rolled back
+     *
+     * Input:
+     *  - dto (PaymentWebhookDto):
+     *      - gatewayOrderId     : String (required)
+     *      - gatewayPaymentId  : String
+     *      - amount            : Long (in paise)
+     *      - email             : String
+     *      - contact           : String
+     *      - method            : String (card, upi, wallet, etc.)
+     *      - wallet            : String
+     *      - bank              : String
+     *      - tax               : BigDecimal
+     *      - fee               : BigDecimal
+     *
+     * Output:
+     *  - void
+     *
+     * Throws:
+     *  - ResourceNotFoundException if order metadata is missing
+     *  - RuntimeException for unexpected gateway or persistence failures
+     * --------------------------------------------------------------------
+     */
     @Transactional
-    public void completeOrder(PaymentWebhookDto dto){
-        // 1. Find the existing record by the Order ID (saved during checkout initialization)
-        PaymentDetails payment = paymentDetailRepository.findByGatewayOrderId(dto.getGatewayOrderId())
-                .orElseThrow(() -> new ResourceNotFoundException("No payment record found for: " + dto.getGatewayOrderId()));
+    public void completeOrder(PaymentWebhookDto dto) {
 
-        // 2. Map all the 'Good Info' to the entity
+        log.info("Completing order for Gateway Order ID: {}", dto.getGatewayOrderId());
+
+        /* ------------------------------------------------------------
+         * 1. Fetch Order using Gateway Order ID
+         * ------------------------------------------------------------ */
+        Order order = orderRepository.findByGatewayOrderId(dto.getGatewayOrderId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Order not found for gatewayOrderId="
+                                + dto.getGatewayOrderId()));
+
+        /* ------------------------------------------------------------
+         * 2. Fetch or Reconstruct Payment Details (Gateway Fallback)
+         * ------------------------------------------------------------ */
+        PaymentDetails payment = paymentDetailRepository
+                .findByGatewayOrderId(dto.getGatewayOrderId())
+                .orElseGet(() -> {
+                    log.warn("Payment not found in DB. Triggering gateway verification. Gateway={}",
+                            order.getGatewayName());
+                    PaymentProcessor processor =
+                            paymentService.paymentProcessorMap.get(order.getGatewayName());
+                    return processor.verifyPayment(dto.getGatewayOrderId());
+                });
+
+        /* ------------------------------------------------------------
+         * 3. IDEMPOTENCY CHECK
+         * ------------------------------------------------------------ */
+        if ("CAPTURED".equals(payment.getStatus())) {
+            log.warn("Payment already captured for gatewayOrderId={}. Skipping processing.",
+                    dto.getGatewayOrderId());
+            return;
+        }
+
+        /* ------------------------------------------------------------
+         * 4. Map Gateway Payload → Payment Entity
+         * ------------------------------------------------------------ */
         payment.setGatewayPaymentId(dto.getGatewayPaymentId());
         payment.setEmail(dto.getEmail());
         payment.setContact(dto.getContact());
         payment.setMethod(dto.getMethod());
         payment.setWallet(dto.getWallet());
         payment.setBank(dto.getBank());
-        payment.setAmount(dto.getAmount());
+
+        if (dto.getAmount() != null) {
+            BigDecimal amountInBaseCurrency = BigDecimal.valueOf(dto.getAmount())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            payment.setAmount(amountInBaseCurrency);
+        }
+
         payment.setTax(dto.getTax());
         payment.setFee(dto.getFee());
-        payment.setStatus("CAPTURED");
+        payment.setStatus(OrderStatus.ORDER_PAID.name());
 
-        // 3. Update Order Status
-        Order order = payment.getOrder();
-        order.setOrderStatus(OrderStatus.PAID);
+        /* ------------------------------------------------------------
+         * 5. Update Order Status & Inventory
+         * ------------------------------------------------------------ */
+        order.setOrderStatus(OrderStatus.ORDER_PAID);
+        reduceInventory(order.getOrderItems());
 
-        // 4. Save and Flush
+        /* ------------------------------------------------------------
+         * 6. Persist Changes
+         * ------------------------------------------------------------ */
         paymentDetailRepository.save(payment);
         orderRepository.save(order);
 
-        // 5. Cleanup
+        /* ------------------------------------------------------------
+         * 7. Post-Order Cleanup
+         * ------------------------------------------------------------ */
         cartService.clearCart(order.getUser().getId());
     }
 
+
+    /**
+     * --------------------------------------------------------------------
+     * REDUCE PRODUCT INVENTORY AFTER SUCCESSFUL ORDER
+     * --------------------------------------------------------------------
+     * Deducts inventory quantities for all valid (non-deleted) order items from the user's cart
+     *
+     * This method:
+     *  - Iterates through order items associated with a paid order
+     *  - Validates available inventory for each product
+     *  - Reduces stock based on quantity sold
+     *  - Persists updated inventory state
+     *
+     * Transactional behavior:
+     *  - Executes within an existing transaction
+     *  - Any inventory shortage will cause rollback of the entire order flow
+     *
+     * Input:
+     *  - items (Set<OrderItem>)
+     *      - product     : Product (must not be null)
+     *      - quantity    : int (quantity sold)
+     *      - deleted     : boolean (soft delete flag)
+     *
+     * Output:
+     *  - void
+     *
+     * Throws:
+     *  - IllegalStateException if inventory is insufficient
+     * --------------------------------------------------------------------
+     */
     @Transactional
-    public void reduceInventory(Set<OrderItem> items){
-        for (OrderItem orderItem: items){
-            Product product = orderItem.getProduct();
-            int quantitySold = orderItem.getQuantity();
-            if (product.getInventory() < quantitySold) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
+    public void reduceInventory(Set<OrderItem> items) {
+
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+
+        items.stream()
+                .filter(item -> !item.isDeleted())
+                .forEach(orderItem -> {
+
+                    /* ------------------------------------------------------------
+                     * 1. Validate Product Reference
+                     * ------------------------------------------------------------ */
+                    Product product = orderItem.getProduct();
+                    if (product == null) {
+                        throw new IllegalStateException("OrderItem has no associated product");
+                    }
+
+                    /* ------------------------------------------------------------
+                     * 2. Resolve Current Inventory
+                     * ------------------------------------------------------------ */
+                    int currentStock = product.getInventory() != null
+                            ? product.getInventory()
+                            : 0;
+
+                    int quantitySold = orderItem.getQuantity();
+
+                    /* ------------------------------------------------------------
+                     * 3. Validate Stock Availability
+                     * ------------------------------------------------------------ */
+                    if (currentStock < quantitySold) {
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Insufficient stock for product [%s]. Available=%d, Requested=%d",
+                                        product.getName(),
+                                        currentStock,
+                                        quantitySold
+                                )
+                        );
+                    }
+
+                    /* ------------------------------------------------------------
+                     * 4. Reduce Inventory & Persist
+                     * ------------------------------------------------------------ */
+                    product.setInventory(currentStock - quantitySold);
+                    productRepository.save(product);
+                });
+    }
+
+
+    /**
+     * Processes the checkout for a specific order.
+     * Performs inventory validation, price freezing, and final amount calculation
+     * before transitioning the order to INITIATED status and processing payment.
+     *
+     * @param orderId The unique identifier of the order to be processed.
+     * @return PaymentInitializationResponse containing gateway-specific payment details.
+     * @throws ResourceNotFoundException if the order does not exist.
+     * @throws IllegalStateException if the order is not in a valid state for checkout.
+     */
+    @Override
+    public OrderDto checkout(Long orderId) {
+        // 1. fetch the order:
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(" Order not found with ID: "+orderId));
+
+        // 2. Validate Order Status (Only PENDING orders can be checked out)
+        if (order.getOrderStatus() != OrderStatus.ORDER_PLACED){
+            throw new IllegalArgumentException("To process order, Order should be on ORDER_PLACED state, but current state of order is: "+order.getOrderStatus());
+        }
+
+        // 3. Inventory Check & Price Freeze
+        // Logic: Ensure products haven't sold out and prices haven't changed since adding to cart
+        validateInventoryAndFreezePrices(order);
+        calculateGrandTotal(order);
+        order.setOrderStatus(OrderStatus.ORDER_CHECKED_OUT);
+        order = orderRepository.save(order);
+        return orderMapper.toDto(order);
+    }
+
+    /**
+     * Processes the checkout for a specific order.
+     * Performs inventory validation, price freezing, and final amount calculation
+     * before transitioning the order to INITIATED status and processing payment.
+     *
+     * @param orderId The unique identifier of the order to be processed.
+     * @param gateway The payment gateway to be used (e.g., RAZOR_PAY, STRIPE).
+     * @return PaymentInitializationResponse containing gateway-specific payment details.
+     * @throws ResourceNotFoundException if the order does not exist.
+     * @throws IllegalStateException if the order is not in a valid state for checkout.
+     */
+    @Override
+    public PaymentInitializationResponse initiatePayment(Long orderId, String gateway) {
+        // 1. fetch the order:
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(" Order not found with ID: "+orderId));
+
+
+        order.setOrderStatus(OrderStatus.ORDER_PAYMENT_INITIATED);
+        orderRepository.save(order);
+
+        // Strategy pattern
+        return paymentService.processPayment(order, gateway);
+    }
+
+    @Override
+    @Transactional
+    public void handlePaymentSuccess(PaymentWebhookDto dto) {
+        PaymentDetails paymentDetails = paymentDetailsRepository.findByGatewayOrderId(dto.getGatewayOrderId()).orElseThrow(() ->
+            new IllegalStateException("Payment not found with GatewayOrderId "+ dto.getGatewayOrderId()));
+        if (paymentDetails.getStatus().equals(OrderStatus.ORDER_PAID.name())){
+            return; // idempotent
+        }
+        completeOrder(dto);
+    }
+
+    @Override
+    public void handlePaymentFailure(PaymentWebhookDto dto) {
+        PaymentDetails paymentDetails = paymentDetailsRepository.findByGatewayOrderId(dto.getGatewayOrderId()).orElseThrow(() ->
+                new IllegalStateException("Payment not found with GatewayOrderId "+ dto.getGatewayOrderId()));
+        if (paymentDetails.getStatus() == OrderStatus.ORDER_PAYMENT_FAILED.name()){
+            log.info("Payment already marked as {}, skipping update. gatewayOrderId={}",
+                    paymentDetails.getStatus(), dto.getGatewayOrderId());
+            return;
+        }
+        paymentDetails.setStatus(OrderStatus.ORDER_PAYMENT_FAILED.name());
+        paymentDetails.setGatewayPaymentId(dto.getGatewayPaymentId());
+        paymentDetails.setEmail(dto.getEmail());
+        paymentDetails.setContact(dto.getContact());
+        paymentDetails.setMethod(dto.getMethod());
+        paymentDetails.setWallet(dto.getWallet());
+        paymentDetails.setBank(dto.getBank());
+        // Amount may exist even in failure
+        if (dto.getAmount() != null) {
+            BigDecimal amountInBaseCurrency = BigDecimal.valueOf(dto.getAmount())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            paymentDetails.setAmount(amountInBaseCurrency);
+        }
+        paymentDetails.setTax(null);
+        paymentDetails.setFee(null);
+
+        Order order = paymentDetails.getOrder();
+        order.setOrderStatus(OrderStatus.ORDER_PAYMENT_FAILED);
+        orderRepository.save(order);
+        paymentDetailsRepository.save(paymentDetails);
+        log.info("Payment {} processed for gatewayOrderId={}",
+                paymentDetails.getStatus(), dto.getGatewayOrderId());
+        // just save dB and do nothing
+
+    }
+
+    @Override
+    public void handlePaymentCancelled(PaymentWebhookDto dto) {
+        PaymentDetails paymentDetails = paymentDetailsRepository.findByGatewayOrderId(dto.getGatewayOrderId()).orElseThrow(() ->
+                new IllegalStateException("Payment not found with GatewayOrderId "+ dto.getGatewayOrderId()));
+        if (paymentDetails.getStatus() == OrderStatus.ORDER_PAYMENT_CANCELLED.name()){
+            log.info("Payment already marked as {}, skipping update. gatewayOrderId={}",
+                    paymentDetails.getStatus(), dto.getGatewayOrderId());
+            return;
+        }
+        paymentDetails.setStatus(OrderStatus.ORDER_PAYMENT_CANCELLED.name());
+        paymentDetails.setGatewayPaymentId(dto.getGatewayPaymentId());
+        paymentDetails.setEmail(dto.getEmail());
+        paymentDetails.setContact(dto.getContact());
+        paymentDetails.setMethod(dto.getMethod());
+        paymentDetails.setWallet(dto.getWallet());
+        paymentDetails.setBank(dto.getBank());
+        // Amount may exist even in failure
+        if (dto.getAmount() != null) {
+            BigDecimal amountInBaseCurrency = BigDecimal.valueOf(dto.getAmount())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            paymentDetails.setAmount(amountInBaseCurrency);
+        }
+        paymentDetails.setTax(null);
+        paymentDetails.setFee(null);
+
+        Order order = paymentDetails.getOrder();
+        order.setOrderStatus(OrderStatus.ORDER_PAYMENT_CANCELLED);
+        orderRepository.save(order);
+        paymentDetailsRepository.save(paymentDetails);
+        log.info("Payment {} processed for gatewayOrderId={}",
+                paymentDetails.getStatus(), dto.getGatewayOrderId());
+
+    }
+
+    private void validateInventoryAndFreezePrices(Order order){
+        for (OrderItem item: order.getOrderItems()){
+            Product product = item.getProduct();
+            // check inventory
+            if (product.getInventory() < item.getQuantity()){
+                throw new StockInsufficientException("Insufficient stock for product: " + product.getName());
             }
-            product.setInventory(product.getInventory() - quantitySold);
-            productRepository.save(product);
+            item.setPrice(product.getPrice());
         }
     }
+
+    private void calculateGrandTotal(Order order){
+        BigDecimal subTotal = order.getTotalAmount();
+        BigDecimal shipping = new BigDecimal("5");
+        BigDecimal tax = subTotal.multiply(new BigDecimal(".10"));
+        order.setTotalAmount(subTotal.add(shipping).add(tax));
+    }
+
 }

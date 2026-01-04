@@ -5,10 +5,12 @@ import com.pdas.priCart.shop.cartAndCheckout.repositories.CartItemRepository;
 import com.pdas.priCart.shop.cartAndCheckout.repositories.CartRepository;
 import com.pdas.priCart.shop.product.exception.ResourceNotFoundException;
 import com.pdas.priCart.shop.user.models.User;
+import com.pdas.priCart.shop.user.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -20,16 +22,53 @@ public class CartServiceImpl implements CartService{
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final UserRepository userRepository;
     private final AtomicLong cartIdGenerator = new AtomicLong(0);
     @Override
-    public Cart getCart(Long cartId) {
-        Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: "+cartId));
-        BigDecimal totalAmount = cart.getTotalAmount();
-        cart.setTotalAmount(totalAmount);
-        return cartRepository.save(cart);
+    public Cart getCart() {
+        // 1. Get Authentication from SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        // 2. Find user in DB
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // 3. Return or Create Cart
+        return cartRepository.findByUserId(user.getId())
+                .orElseGet(() -> {
+                    Cart newCart = new Cart();
+                    newCart.setUser(user);
+                    newCart.setTotalAmount(BigDecimal.ZERO);
+                    return cartRepository.save(newCart);
+                });
+    }
+
+    private final User getUserFromContext(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        // 2. Find user in DB
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return user;
+
     }
 
     @Override
+    public void clearCart() {
+        User user = getUserFromContext();
+        // Instead of orElseThrow, use ifPresent or a soft check
+        cartRepository.findByUserId(user.getId()).ifPresent(cart -> {
+            cartItemRepository.deleteAll(cart.getCartItems());
+            cart.getCartItems().clear();
+            cart.setTotalAmount(BigDecimal.ZERO);
+            cartRepository.save(cart);
+        });
+        // If not present, we just log it and move on
+        log.info("Cart already empty or not found for user: {}, skipping clearCart", user.getId());
+    }
+
     public void clearCart(Long userId) {
         // Instead of orElseThrow, use ifPresent or a soft check
         cartRepository.findByUserId(userId).ifPresent(cart -> {
@@ -43,8 +82,8 @@ public class CartServiceImpl implements CartService{
     }
 
     @Override
-    public BigDecimal getTotalPrice(Long cartId) {
-        Cart cart = getCart(cartId);
+    public BigDecimal getTotalPrice() {
+        Cart cart = getCart();
         return cart.getTotalAmount();
     }
 

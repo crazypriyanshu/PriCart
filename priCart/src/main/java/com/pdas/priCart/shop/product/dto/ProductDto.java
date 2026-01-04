@@ -19,5 +19,6 @@ public class ProductDto {
     private String brand;
     private BigDecimal price;
     private Integer inventory;
+    private String description;
     private String categoryName; // no category entity and no image entity
 }

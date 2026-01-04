@@ -12,4 +12,6 @@ public class PaymentInitializationResponse {
     private Long amount;        // In paise
     private String currency;
     private String apiKey;      // Public key for frontend SDK
+    private String customerName;
+    private String customerEmail;
 }

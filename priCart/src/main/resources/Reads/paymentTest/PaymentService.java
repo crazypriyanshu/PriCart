@@ -25,14 +25,12 @@ public class PaymentService {
         if (paymentProcessor == null){
             throw new IllegalArgumentException("Unsupported gateway");
         }
-
         // 1. Initiate payment through the specific gateway
         PaymentInitializationResponse response = paymentProcessor.initiatePayment(order);
-        // 2. Save generic details back to the order
+        // 2. Save details back to the order
         order.setGatewayOrderId(response.getOrderId()); // Stores the external ID
         order.setPaymentGateway(gateway);              // Stores "RAZOR_PAY"
         orderRepository.save(order);
-
         return response;
     }
 

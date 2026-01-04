@@ -1,5 +1,7 @@
 package com.pdas.priCart.shop.cartAndCheckout.controllers;
 
+import com.pdas.priCart.shop.cartAndCheckout.dtos.CartAddResponse;
+import com.pdas.priCart.shop.cartAndCheckout.mappers.CartMapper;
 import com.pdas.priCart.shop.cartAndCheckout.models.Cart;
 import com.pdas.priCart.shop.cartAndCheckout.services.CartService;
 import com.pdas.priCart.shop.common.dto.ApiResponse;
@@ -18,21 +20,23 @@ import java.math.BigDecimal;
 public class CartController {
     @Autowired
     private final CartService cartService;
+    private final CartMapper cartMapper;
 
-    @GetMapping("/{cartId}")
-    public ResponseEntity<ApiResponse> getCart(@PathVariable Long cartId){
+    @GetMapping("/getUserCart")
+    public ResponseEntity<ApiResponse> getUserCart(){
         try {
-            Cart cart = cartService.getCart(cartId);
-            return ResponseEntity.ok().body(new ApiResponse<>("Sucess", cart));
+            Cart cart = cartService.getCart();
+            CartAddResponse requestDto = cartMapper.toDto(cart);
+            return ResponseEntity.ok().body(new ApiResponse<>("Success", requestDto));
         } catch (ResourceNotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>(e.getMessage(), null));
         }
     }
 
-    @DeleteMapping("/{cartId}")
-    public ResponseEntity<ApiResponse> clearCart(@PathVariable Long cartId){
+    @DeleteMapping("/clear-cart")
+    public ResponseEntity<ApiResponse> clearCart(){
         try {
-            cartService.clearCart(cartId);
+            cartService.clearCart();
             return ResponseEntity.ok().body(new ApiResponse<>("Cart cleared successfully", null));
         } catch (ResourceNotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>(e.getMessage(), null));
@@ -40,10 +44,10 @@ public class CartController {
 
     }
 
-    @GetMapping("{cartId}/totalAmount")
-    public ResponseEntity<ApiResponse> getTotalAmount(@PathVariable Long cartId){
+    @GetMapping("/totalAmount")
+    public ResponseEntity<ApiResponse> getTotalAmount(){
         try {
-            BigDecimal totalAmount = cartService.getTotalPrice(cartId);
+            BigDecimal totalAmount = cartService.getTotalPrice();
             return ResponseEntity.ok().body(new ApiResponse<>("Total Price: ", totalAmount));
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>(e.getMessage(), null));

@@ -200,6 +200,7 @@ public class ProductServiceImpl implements ProductService {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Search name must not be empty");
         }
+
         Page<Product> products = productRepository.findByName(name, pageable);
         return products.map(productMapper::productToDto);
     }

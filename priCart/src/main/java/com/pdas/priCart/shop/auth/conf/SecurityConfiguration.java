@@ -120,7 +120,7 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/login",
                                 "/api/v1/users/all/**"
                         ).permitAll()
-                        .requestMatchers("/api/v1/payments/webhook/**").permitAll()
+                        .requestMatchers("/api/v1/orders/razorpay").permitAll()
 
                         // ---- Role-based ----
                         .requestMatchers("/api/v1/users/a/**").hasRole("ADMIN")
