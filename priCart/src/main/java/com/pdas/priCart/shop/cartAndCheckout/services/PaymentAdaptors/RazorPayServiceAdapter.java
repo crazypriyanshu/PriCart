@@ -135,6 +135,7 @@ public class RazorPayServiceAdapter implements PaymentProcessor {
                 .orderId(existingPaymentDetails.getGatewayOrderId())
                 .amount(amountInPaise)
                 .apiKey(keyId)
+                .paymentUrl("http://localhost:8081/view/payments/pay/" + order.getId())
                 .customerName(order.getUser().getFirstName())
                 .customerEmail(order.getUser().getEmail())
                 .build();
@@ -165,6 +166,7 @@ public class RazorPayServiceAdapter implements PaymentProcessor {
                 .orderId(gatewayOrderId)
                 .amount(amountInPaise)
                 .currency(CurrencyCode.INR.name())
+                .paymentUrl("http://localhost:8081/view/payments/pay/" + order.getId())
                 .apiKey(keyId)
                 .customerName(order.getUser().getFirstName())
                 .customerEmail(order.getUser().getEmail())

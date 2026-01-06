@@ -9,10 +9,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RazorPayConfig {
     @Value("${razorpay.key.id}")
-    private String apiKey;
+    public String apiKey;
 
     @Value("${razorpay.key.secret}")
-    private String apiSecret;
+    public String apiSecret;
 
     @Bean
     public RazorpayClient razorpayClient() throws RazorpayException {

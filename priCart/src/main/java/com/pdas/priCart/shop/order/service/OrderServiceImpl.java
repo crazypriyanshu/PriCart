@@ -8,6 +8,8 @@ import com.pdas.priCart.shop.cartAndCheckout.models.PaymentStatus;
 import com.pdas.priCart.shop.cartAndCheckout.services.CartService;
 import com.pdas.priCart.shop.cartAndCheckout.services.PaymentProcessor;
 import com.pdas.priCart.shop.cartAndCheckout.services.PaymentService;
+import com.pdas.priCart.shop.notifications.events.PaymentNotificationEvent;
+import com.pdas.priCart.shop.notifications.service.NotificationProducer;
 import com.pdas.priCart.shop.order.dto.OrderDto;
 import com.pdas.priCart.shop.order.dto.OrderItemDto;
 import com.pdas.priCart.shop.order.mapper.OrderMapper;
@@ -46,6 +48,7 @@ public class OrderServiceImpl implements OrderService{
     private final PaymentDetailsRepository paymentDetailRepository;
     private final OrderMapper orderMapper;
     private final PaymentService paymentService;
+    private final NotificationProducer notificationProducer;
 
     /*
     * Step 1 of User payment journey
@@ -95,6 +98,19 @@ public class OrderServiceImpl implements OrderService{
         // Save (order items are saved via CascadingType.ALL)
         Order saveOrder = orderRepository.save(order);
         // DO NOT clear the cart yet!
+
+        //Now send to kafka
+        if (order.getOrderStatus() != null){
+            PaymentNotificationEvent event = new PaymentNotificationEvent(
+                    order.getId(),
+                    order.getUser().getEmail(),
+                    order.getUser().getFirstName(),
+                    order.getTotalAmount(),
+                    order.getOrderStatus().name()
+            );
+            notificationProducer.sendNotification(event);
+
+        }
 
         return orderMapper.toDto(saveOrder);
     }
@@ -261,6 +277,14 @@ public class OrderServiceImpl implements OrderService{
          * 7. Post-Order Cleanup
          * ------------------------------------------------------------ */
         cartService.clearCart(order.getUser().getId());
+        PaymentNotificationEvent event = new PaymentNotificationEvent(
+                order.getId(),
+                order.getUser().getEmail(),
+                order.getUser().getFirstName(),
+                order.getTotalAmount(),
+                "PAID"
+        );
+        notificationProducer.sendNotification(event);
     }
 
 
