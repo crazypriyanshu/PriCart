@@ -3,6 +3,7 @@ package com.pdas.priCart.shop.cartAndCheckout.ControllerAdvice;
 import com.pdas.priCart.shop.common.dto.ApiResponse;
 import com.pdas.priCart.shop.order.exceptions.ProductOutOfStockException;
 import com.pdas.priCart.shop.product.exception.ResourceNotFoundException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -53,5 +54,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT) // 409 Conflict
                 .body(new ApiResponse(ex.getMessage(), "OUT_OF_STOCK"));
+    }
+
+    @ExceptionHandler(org.springframework.data.mapping.PropertyReferenceException.class)
+    public ResponseEntity<ApiResponse> handlePropertyReferenceException(PropertyReferenceException e) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse("Invalid sort property: " + e.getPropertyName(), null));
     }
 }
