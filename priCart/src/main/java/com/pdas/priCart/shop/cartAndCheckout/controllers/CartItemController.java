@@ -64,10 +64,10 @@ public class CartItemController {
         }
     }
 
-    @DeleteMapping("/{cartId}/item/{itemId}")
-    public ResponseEntity<ApiResponse> removeItemFromCart(@PathVariable Long cartId, @PathVariable Long itemId){
+    @DeleteMapping("/item/{itemId}")
+    public ResponseEntity<ApiResponse> removeItemFromCart( @PathVariable Long itemId){
         try {
-            Cart updatedCart  = cartItemService.removeCartItem(cartId, itemId);
+            Cart updatedCart  = cartItemService.removeCartItem(itemId);
             return ResponseEntity.ok().body(new ApiResponse<>("Item removed from cart: ", cartMapper.toDto(updatedCart)));
         } catch (ResourceNotFoundException | ProductNotFoundException e){
             return ResponseEntity.status(NOT_FOUND).body(new ApiResponse<>(e.getMessage(), null));

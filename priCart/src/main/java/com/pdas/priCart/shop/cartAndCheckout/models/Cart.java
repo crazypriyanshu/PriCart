@@ -35,6 +35,7 @@ public class Cart extends BaseModel {
 
     }
 
+    // now relying on soft delete
     public void removeItem(CartItem cartItem){
         cartItems.remove(cartItem);
         cartItem.setCart(null);

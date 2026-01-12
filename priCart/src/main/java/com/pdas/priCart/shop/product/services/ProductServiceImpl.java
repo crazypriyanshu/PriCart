@@ -50,10 +50,10 @@ public class ProductServiceImpl implements ProductService {
         // Business logic: save category as new category if you have not seen this category ever
         // Fetch or create category by name
         Category category = categoryRepository
-                .findByNameIgnoreCase(request.getCategory().getName())
+                .findFirstByNameIgnoreCase(request.getCategory().getName())
                 .orElseGet(() -> {
                     Category newCategory = Category.builder()
-                            .name(request.getCategory().getName())
+                            .name(request.getCategory().getName().trim())
                             .build();
                     return categoryRepository.save(newCategory);
                 });

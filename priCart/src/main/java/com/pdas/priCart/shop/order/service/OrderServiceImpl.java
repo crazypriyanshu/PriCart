@@ -62,6 +62,18 @@ public class OrderServiceImpl implements OrderService{
         User user = userService.getAuthenticatedUser();
         Cart cart = cartService.getCart();
 
+        boolean isAlreadyPlacedOrder = orderRepository.existsByUserAndOrderStatus(user, OrderStatus.ORDER_PLACED);
+        if (isAlreadyPlacedOrder){
+            Order existingOrder = orderRepository.findTopByUserAndOrderStatusInOrderByCreatedAtDesc(user, List.of(OrderStatus.ORDER_PLACED))
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+            throw new IllegalStateException(String.format(
+                    "Order is already placed for user %s with cart_id %d. Current Order ID: %d",
+                    user.getEmail(), cart.getId(), (existingOrder != null ? existingOrder.getId() : 0)
+            ));
+        }
+
         // 2. Initialize Order
         // checking orders based on timestamp - findTopByUserAndOrderStatusInOrderByCreatedTimeDesc handle concurrency
         Order order = orderRepository.findTopByUserAndOrderStatusInOrderByCreatedAtDesc(user,
@@ -97,7 +109,7 @@ public class OrderServiceImpl implements OrderService{
 
         // Save (order items are saved via CascadingType.ALL)
         Order saveOrder = orderRepository.save(order);
-        // DO NOT clear the cart yet!
+        // DO NOT clear the cart
 
         //Now send to kafka
         if (order.getOrderStatus() != null){

@@ -30,7 +30,7 @@ public class PaymentInitiator {
         model.addAttribute("rzpOrderId", order.getGatewayOrderId());
         model.addAttribute("amount", order.getTotalAmount().multiply(new BigDecimal(100)).longValue()); // RZP expects paise
         model.addAttribute("currency", "INR");
-        model.addAttribute("apiKey", "rzp_test_YOUR_KEY_HERE"); // Use your actual test key
+        model.addAttribute("apiKey", "rzp_test_Rygdi2QEuUjTJg"); // Use your actual test key
         model.addAttribute("orderId", order.getId());
 
         return "payment_page";

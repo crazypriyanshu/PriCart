@@ -7,6 +7,7 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -15,6 +16,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -39,6 +41,19 @@ import java.util.UUID;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
+    private static final String[] SWAGGER_WHITELIST = {
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html"
+    };
+
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/v1/auth/login",
+            "/api/v1/users/all/**",
+            "/api/v1/orders/razorpay"
+    };
+
+    private static final String PRODUCT_PATH = "/api/v1/products/**";
 
     private RSAKey rsaKey;
     // 1. to change to Oauth2 resource server
@@ -109,35 +124,56 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // ---- Swagger / OpenAPI ----
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
-
-                        // ---- Public endpoints ----
-                        .requestMatchers(
-                                "/api/v1/auth/login",
-                                "/api/v1/users/all/**"
-                        ).permitAll()
-                        .requestMatchers("/api/v1/orders/razorpay").permitAll()
-
-                        // ---- Role-based ----
-                        .requestMatchers("/api/v1/users/a/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/u/**").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers("/api/v1/products/**").hasAnyRole("USER", "ADMIN")
-
-                        // ---- Everything else secured ----
-                        .anyRequest().authenticated()
+                .authorizeHttpRequests(auth -> {
+                    configureSwaggerPaths(auth);
+                    configurePaymentPaths(auth);
+                    configurePublicPaths(auth);
+                    configureActuator(auth);
+                    configureProductPaths(auth);
+                    configureUserManagementPaths(auth);
+                    auth.anyRequest().authenticated();
+                        }
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                        .accessDeniedHandler(new CustomAccessDeniedHandler())
+                )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
 
         return http.build();
+    }
+
+    private void configureSwaggerPaths(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth.requestMatchers(SWAGGER_WHITELIST).permitAll();
+    }
+
+    private void configurePublicPaths(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
+    }
+
+    private void configurePaymentPaths(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth.requestMatchers("/view/payments/**").permitAll();
+    }
+
+    private void configureActuator(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth){
+        auth.requestMatchers("/actuator/**").hasRole("ADMIN");
+    }
+
+    private void configureUserManagementPaths(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth.requestMatchers("/api/v1/users/a/**").hasRole("ADMIN");
+        auth.requestMatchers("/api/v1/users/u/**").hasAnyRole("USER", "ADMIN");
+    }
+
+    private void configureProductPaths(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        // READ: Both roles
+        auth.requestMatchers(HttpMethod.GET, PRODUCT_PATH).hasAnyRole("USER", "ADMIN");
+
+        // WRITE: Admin only (Create, Update, Delete)
+        auth.requestMatchers(HttpMethod.POST, PRODUCT_PATH).hasRole("ADMIN");
+        auth.requestMatchers(HttpMethod.PATCH, PRODUCT_PATH).hasRole("ADMIN");
+        auth.requestMatchers(HttpMethod.DELETE, PRODUCT_PATH).hasRole("ADMIN");
     }
 
     @Bean

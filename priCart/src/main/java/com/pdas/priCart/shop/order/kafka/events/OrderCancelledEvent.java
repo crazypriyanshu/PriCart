@@ -1,4 +1,11 @@
 package com.pdas.priCart.shop.order.kafka.events;
 
-public class OrderCancelledEvent {
-}
+import java.time.LocalDateTime;
+import java.util.Map;
+
+public record OrderCancelledEvent(
+        Long orderId,
+        String reason,
+        LocalDateTime timestamp,
+        Map<Long, Integer> expiredItemsToQuantity
+) {}

@@ -6,7 +6,7 @@ import com.pdas.priCart.shop.product.exception.ProductNotFoundException;
 
 public interface CartItemService {
     Cart addCartItem(Long cartId, Long productId, int quantity) throws ProductNotFoundException;
-    Cart removeCartItem(Long cartId, Long productId);
+    Cart removeCartItem(Long productId);
     Cart updateItemQuantity(Long productId, int quantity);
     CartItem getCartItem(Long productId);
 

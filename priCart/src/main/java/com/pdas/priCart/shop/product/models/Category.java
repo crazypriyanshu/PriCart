@@ -20,7 +20,7 @@ import java.util.List;
 @Builder
 @Table(name = "category")
 public class Category extends BaseModel {
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Column(nullable = true, length = 1000)

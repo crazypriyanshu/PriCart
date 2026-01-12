@@ -66,9 +66,9 @@ public class CartItemServiceImpl implements CartItemService{
 
     @Override
     @Transactional
-    public Cart removeCartItem(Long cartId, Long productId) {
+    public Cart removeCartItem(Long productId) {
 
-        Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart not found with cartID: "+cartId));
+        Cart cart = cartService.getCart();
         CartItem itemsToRemove = cart.getCartItems().stream()
                 .filter(item -> item.getProduct().getId().equals(productId) && !item.isDeleted())
                 .findFirst()

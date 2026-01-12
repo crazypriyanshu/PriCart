@@ -14,4 +14,5 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     Page<Category> findAll(Pageable pageable);
 
     Optional<Category> findByNameIgnoreCase(String name);
+    Optional<Category> findFirstByNameIgnoreCase(String name);
 }

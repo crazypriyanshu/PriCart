@@ -1,8 +1,11 @@
-package com.pdas.priCart.shop.cartAndCheckout.ControllerAdvice;
+package com.pdas.priCart.shop.common.ControllerAdvice;
 
 import com.pdas.priCart.shop.common.dto.ApiResponse;
 import com.pdas.priCart.shop.order.exceptions.ProductOutOfStockException;
 import com.pdas.priCart.shop.product.exception.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
+import kotlin.io.AccessDeniedException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse> handleResourceNotFound(ResourceNotFoundException exception){
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>(exception.getMessage(), null));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse> handleAccessDeniedException(AccessDeniedException e) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ApiResponse("You do not have permission to perform this action. Check with admin", null));
     }
 
     // Handle Validation Errors
@@ -47,6 +57,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleGeneralException(Exception exception){
         exception.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>("An unexpected error occured", null));
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiResponse> handleEntityNotFound(EntityNotFoundException exception) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(exception.getMessage(), null));
+    }
+
+    @ExceptionHandler(IncorrectResultSizeDataAccessException.class)
+    public ResponseEntity<ApiResponse> handleDuplicateDataException(IncorrectResultSizeDataAccessException e){
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ApiResponse<>("Internal Data Error: Multiple records found where only one was expected.", null));
     }
 
     @ExceptionHandler(ProductOutOfStockException.class)
